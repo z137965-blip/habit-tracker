@@ -373,6 +373,17 @@ async function loadRemoteLiveData() {
     if (elements.shareBannerMeta) elements.shareBannerMeta.textContent = "只读视图 · 暂时无法连接，正在自动重试";
   }
 }
+function startRemoteLiveUpdates() {
+  if (!isRemoteLiveView) return;
+  loadRemoteLiveData();
+  if ("EventSource" in window) {
+    const events = new EventSource(`https://ntfy.sh/${LIVE_NOTIFY_TOPIC}/sse`);
+    events.addEventListener("message", () => loadRemoteLiveData());
+  }
+  window.setInterval(() => {
+    if (!document.hidden) loadRemoteLiveData();
+  }, 300000);
+}
 function getHabitValue(habit) {
   const dayRecord = records[currentDateKey];
   if (!dayRecord || typeof dayRecord !== "object") return 0;
@@ -1097,6 +1108,7 @@ render();
 
 if (isLocalSyncServer) initializeLocalServerData();
 if (isRemoteLiveView) startRemoteLiveUpdates();
+
 
 
 
