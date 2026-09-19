@@ -1,0 +1,263 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f5f3ff">
+  <meta name="description" content="带目标进度、习惯记忆和周期统计的每日习惯打卡页。">
+  <title>今日打卡 · Habit Tracker</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="ambient ambient-one" aria-hidden="true"></div>
+  <div class="ambient ambient-two" aria-hidden="true"></div>
+
+  <main class="app-shell">
+    <header class="topbar">
+      <div>
+        <p class="date-label" id="dateLabel"></p>
+        <h1>今天，做一点就好。</h1>
+      </div>
+      <button class="add-button" id="openAddDialog" type="button">
+        <svg aria-hidden="true" viewBox="0 0 24 24">
+          <path d="M12 5v14M5 12h14"></path>
+        </svg>
+        <span>添加习惯</span>
+      </button>
+    </header>
+
+    <section class="share-banner" id="shareBanner" hidden>
+      <div>
+        <strong>正在查看分享数据</strong>
+        <span id="shareBannerMeta"></span>
+      </div>
+      <button id="exitShareView" type="button">返回我的数据</button>
+    </section>
+
+    <section class="summary-card" id="summaryCard" aria-labelledby="summaryTitle">
+      <div class="summary-copy">
+        <p class="summary-title" id="summaryTitle">今日进度</p>
+        <div class="count-line" aria-live="polite">
+          <strong id="doneCount">0</strong>
+          <span>/ <span id="totalCount">0</span> 项</span>
+        </div>
+        <p class="encouragement" id="encouragement">从一件小事开始。</p>
+        <div class="progress-track" role="progressbar" aria-label="今日完成进度" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" id="progressTrack">
+          <span class="progress-fill" id="progressFill"></span>
+        </div>
+      </div>
+
+      <div class="progress-ring" id="progressRing" style="--progress: 0">
+        <svg viewBox="0 0 120 120" aria-hidden="true">
+          <circle class="ring-track" cx="60" cy="60" r="50"></circle>
+          <circle class="ring-progress" id="ringProgress" cx="60" cy="60" r="50"></circle>
+        </svg>
+        <div class="ring-label">
+          <strong id="percentLabel">0%</strong>
+          <span>完成</span>
+        </div>
+      </div>
+
+      <div class="celebration" id="celebration" aria-hidden="true"></div>
+    </section>
+
+    <section class="habit-section" aria-labelledby="habitListTitle">
+      <div class="section-heading">
+        <h2 id="habitListTitle">今日清单</h2>
+        <p id="remainingLabel" aria-live="polite">还没有习惯</p>
+      </div>
+
+      <div class="habit-list" id="habitList"></div>
+
+      <div class="empty-state" id="emptyState" hidden>
+        <div class="empty-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24">
+            <path d="M12 3v18M3 12h18"></path>
+          </svg>
+        </div>
+        <h3>清单还是空的</h3>
+        <p>添加一个想坚持的小习惯，今天就开始。</p>
+        <button class="secondary-button" id="emptyAddButton" type="button">添加第一个习惯</button>
+      </div>
+    </section>
+
+    <footer class="app-footer">
+      <span class="local-dot" aria-hidden="true"></span>
+      习惯与历史记录仅保存在当前浏览器
+    </footer>
+  </main>
+
+  <dialog class="habit-dialog" id="habitDialog" aria-labelledby="dialogTitle">
+    <form class="dialog-form" id="habitForm" novalidate>
+      <div class="dialog-heading">
+        <div>
+          <p class="dialog-kicker">NEW HABIT</p>
+          <h2 id="dialogTitle">添加一个习惯</h2>
+        </div>
+        <button class="icon-button close-button" id="closeDialog" type="button" aria-label="关闭">
+          <svg aria-hidden="true" viewBox="0 0 24 24">
+            <path d="M6 6l12 12M18 6L6 18"></path>
+          </svg>
+        </button>
+      </div>
+
+      <label class="field-label" for="habitName">习惯名称</label>
+      <input class="text-input" id="habitName" name="habitName" type="text" maxlength="18" autocomplete="off" placeholder="例如：每天冥想 10 分钟" required>
+      <div class="form-grid">
+        <div>
+          <label class="field-label" for="habitTarget">每日目标</label>
+          <input class="text-input number-input" id="habitTarget" name="habitTarget" type="number" min="1" max="999" step="1" value="1" inputmode="numeric" required>
+        </div>
+        <div>
+          <label class="field-label" for="habitUnit">计量单位</label>
+          <select class="text-input select-input" id="habitUnit" name="habitUnit">
+            <option value="次">次</option>
+            <option value="杯">杯</option>
+            <option value="分钟">分钟</option>
+            <option value="页">页</option>
+            <option value="小时">小时</option>
+            <option value="千米">千米</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="field-group">
+        <span class="field-label">快速选择</span>
+        <div class="suggestion-row" id="suggestionRow">
+          <button type="button" data-name="喝水" data-icon="water" data-target="8" data-unit="杯">💧 喝水</button>
+          <button type="button" data-name="运动 20 分钟" data-icon="exercise" data-target="20" data-unit="分钟">🏃 运动</button>
+          <button type="button" data-name="读书" data-icon="book" data-target="20" data-unit="页">📖 读书</button>
+          <button type="button" data-name="早睡" data-icon="sleep" data-target="1" data-unit="次">🌙 早睡</button>
+          <button type="button" data-name="学习" data-icon="study" data-target="60" data-unit="分钟">🎓 学习</button>
+        </div>
+      </div>
+
+      <fieldset class="field-group icon-fieldset">
+        <legend class="field-label">选择图标</legend>
+        <div class="icon-picker" id="iconPicker">
+          <button type="button" data-icon="spark" class="is-selected" aria-label="选择星星图标" aria-pressed="true">✨</button>
+          <button type="button" data-icon="water" aria-label="选择水滴图标" aria-pressed="false">💧</button>
+          <button type="button" data-icon="exercise" aria-label="选择运动图标" aria-pressed="false">🏃</button>
+          <button type="button" data-icon="book" aria-label="选择读书图标" aria-pressed="false">📖</button>
+          <button type="button" data-icon="meditate" aria-label="选择冥想图标" aria-pressed="false">🧘</button>
+          <button type="button" data-icon="sleep" aria-label="选择月亮图标" aria-pressed="false">🌙</button>
+          <button type="button" data-icon="food" aria-label="选择饮食图标" aria-pressed="false">🥗</button>
+          <button type="button" data-icon="study" aria-label="选择学习图标" aria-pressed="false">🎓</button>
+        </div>
+      </fieldset>
+
+      <p class="form-error" id="formError" role="alert"></p>
+
+      <div class="dialog-actions">
+        <button class="secondary-button" id="cancelDialog" type="button">取消</button>
+        <button class="primary-button" type="submit">添加到清单</button>
+      </div>
+    </form>
+  </dialog>
+
+  <button class="details-trigger" id="detailsTrigger" type="button" aria-controls="detailsPanel" aria-expanded="false">
+    <svg aria-hidden="true" viewBox="0 0 24 24">
+      <path d="M4 19V9M10 19V5M16 19v-7M22 19H2"></path>
+    </svg>
+    <span>详情</span>
+  </button>
+
+  <section class="details-panel" id="detailsPanel" aria-labelledby="detailsTitle" hidden>
+    <div class="details-heading">
+      <div>
+        <p class="dialog-kicker">HABIT MEMORY</p>
+        <h2 id="detailsTitle">习惯记忆</h2>
+      </div>
+      <button class="icon-button" id="closeDetails" type="button" aria-label="关闭详情">
+        <svg aria-hidden="true" viewBox="0 0 24 24">
+          <path d="M6 6l12 12M18 6L6 18"></path>
+        </svg>
+      </button>
+    </div>
+
+    <div class="details-share-row">
+      <button class="share-action" id="shareDetailsButton" type="button">
+        <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M12 3v12M7 8l5-5 5 5M5 13v6h14v-6"></path></svg>
+        分享数据
+      </button>
+    </div>
+
+    <div class="history-tabs" id="historyTabs" role="tablist" aria-label="统计周期">
+      <button type="button" class="is-active" data-range="history" role="tab" aria-selected="true">历史</button>
+      <button type="button" data-range="week" role="tab" aria-selected="false">每周</button>
+      <button type="button" data-range="month" role="tab" aria-selected="false">每月</button>
+      <button type="button" data-range="year" role="tab" aria-selected="false">每年</button>
+    </div>
+
+    <div class="history-date-view" id="historyDateView">
+      <div class="date-query">
+        <button id="previousDay" type="button" aria-label="查看前一天">
+          <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"></path></svg>
+        </button>
+        <input id="historyDate" type="date" aria-label="选择查询日期">
+        <button id="nextDay" type="button" aria-label="查看后一天">
+          <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"></path></svg>
+        </button>
+      </div>
+      <div class="history-day-summary" id="historyDaySummary" aria-live="polite"></div>
+      <div class="history-day-list" id="historyDayList"></div>
+    </div>
+
+    <div class="history-summary" id="historySummary" aria-live="polite" hidden></div>
+    <div class="history-table-wrap" id="historyContent" hidden></div>
+    <div class="history-legend" id="historyLegend" aria-hidden="true" hidden>
+      <span>少</span>
+      <i class="level-0"></i><i class="level-1"></i><i class="level-2"></i><i class="level-3"></i><i class="level-4"></i>
+      <span>多</span>
+    </div>
+  </section>
+  <dialog class="share-dialog" id="shareDialog" aria-labelledby="shareDialogTitle">
+    <div class="share-dialog-content">
+      <div class="details-heading">
+        <div>
+          <p class="dialog-kicker">SHARE SNAPSHOT</p>
+          <h2 id="shareDialogTitle">分享数据链接</h2>
+        </div>
+        <button class="icon-button" id="closeShareDialog" type="button" aria-label="关闭分享">
+          <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"></path></svg>
+        </button>
+      </div>
+      <div class="share-mode-options" role="radiogroup" aria-label="分享权限">
+        <label>
+          <input type="radio" name="shareMode" value="edit" checked>
+          <span>
+            <strong>可操作并本地保存</strong>
+            <small>打开链接后可以继续打卡，修改保存在该浏览器中，并可再次生成新链接。</small>
+          </span>
+        </label>
+        <label>
+          <input type="radio" name="shareMode" value="view">
+          <span>
+            <strong>仅预览</strong>
+            <small>只查看当前习惯和历史数据，不能增加、修改或删除内容。</small>
+          </span>
+        </label>
+      </div>
+      <p class="share-help" id="shareHelp">链接会包含当前习惯与历史完成量的快照。发布到静态网站后即可分享。</p>
+      <label class="field-label" for="shareLink">分享链接</label>
+      <input class="text-input share-link-input" id="shareLink" type="text" readonly>
+      <div class="dialog-actions">
+        <button class="secondary-button" id="cancelShareDialog" type="button">关闭</button>
+        <button class="primary-button" id="copyShareLink" type="button">复制链接</button>
+      </div>
+    </div>
+  </dialog>
+
+  <div class="toast" id="toast" role="status" aria-live="polite" aria-atomic="true">
+    <span id="toastMessage"></span>
+    <button id="undoButton" type="button" hidden>撤销</button>
+  </div>
+
+  <script src="app.js" defer></script>
+</body>
+</html>
+
+
+
+
+
