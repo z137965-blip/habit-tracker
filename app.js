@@ -38,6 +38,7 @@ const elements = {
   emptyAddButton: document.getElementById("emptyAddButton"),
   remainingLabel: document.getElementById("remainingLabel"),
   openAddDialog: document.getElementById("openAddDialog"),
+  saveButton: document.getElementById("saveButton"),
   habitDialog: document.getElementById("habitDialog"),
   habitForm: document.getElementById("habitForm"),
   habitName: document.getElementById("habitName"),
@@ -98,6 +99,7 @@ let detailsCloseTimer = null;
 let hasRenderedSummary = false;
 let wasAllComplete = false;
 let hasOpenedDetails = false;
+let hasUnsavedChanges = false;
 let liveDataUpdatedAt = "";
 let serverSyncTimer = null;
 let serverSyncInFlight = false;
@@ -273,8 +275,8 @@ function loadRecords() {
   return normalized;
 }
 
-function saveHabits() { if (!canEdit) return; writeJson(HABITS_KEY, habits); queueServerSync(); }
-function saveRecords() { if (!canEdit) return; writeJson(RECORDS_KEY, records); queueServerSync(); }
+function saveHabits() { if (!canEdit) return; writeJson(HABITS_KEY, habits); markUnsaved(); }
+function saveRecords() { if (!canEdit) return; writeJson(RECORDS_KEY, records); markUnsaved(); }
 function makeId() {
   if (globalThis.crypto && typeof globalThis.crypto.randomUUID === "function") return globalThis.crypto.randomUUID();
   return `habit-${Date.now()}-${Math.random().toString(16).slice(2)}`;
@@ -290,14 +292,24 @@ function getLivePayload() {
   };
 }
 
-function queueServerSync() {
-  if (!isLocalSyncServer || !canEdit) return;
-  window.clearTimeout(serverSyncTimer);
-  serverSyncTimer = window.setTimeout(syncToLocalServer, 700);
+function updateSaveButton() {
+  if (!elements.saveButton) return;
+  elements.saveButton.disabled = false;
+  elements.saveButton.classList.toggle("has-changes", hasUnsavedChanges);
+  elements.saveButton.setAttribute("aria-label", hasUnsavedChanges ? "保存并同步未保存的修改" : "保存并同步当前数据");
+}
+
+function markUnsaved() {
+  hasUnsavedChanges = true;
+  updateSaveButton();
 }
 
 async function syncToLocalServer() {
   if (!isLocalSyncServer || !canEdit || serverSyncInFlight) return;
+  if (!hasUnsavedChanges) {
+    showToast("当前数据已保存");
+    return;
+  }
   serverSyncInFlight = true;
   try {
     const response = await fetch(`${LOCAL_SERVER_ORIGIN}/api/data`, {
@@ -313,6 +325,31 @@ async function syncToLocalServer() {
   }
 }
 
+async function saveCurrentData() {
+  if (!isLocalSyncServer || !canEdit || serverSyncInFlight) return;
+  serverSyncInFlight = true;
+  elements.saveButton.disabled = true;
+  try {
+    const saveResponse = await fetch(`${LOCAL_SERVER_ORIGIN}/api/data`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(getLivePayload())
+    });
+    if (!saveResponse.ok) throw new Error(`Save failed: ${saveResponse.status}`);
+
+    const publishResponse = await fetch(`${LOCAL_SERVER_ORIGIN}/api/publish`, { method: "POST" });
+    if (!publishResponse.ok) throw new Error(`Publish failed: ${publishResponse.status}`);
+
+    hasUnsavedChanges = false;
+    showToast("已保存并同步");
+  } catch (error) {
+    console.warn("保存失败：", error);
+    showToast("保存失败，请确认本机同步服务已启动");
+  } finally {
+    serverSyncInFlight = false;
+    updateSaveButton();
+  }
+}
 async function initializeLocalServerData() {
   if (!isLocalSyncServer) return;
   try {
@@ -356,6 +393,7 @@ function applyLivePayload(payload) {
   currentDateKey = normalized.viewDate;
   selectedHistoryDateKey = currentDateKey;
   liveDataUpdatedAt = normalized.updatedAt;
+  hasUnsavedChanges = false;
   render();
 }
 
@@ -553,6 +591,8 @@ function render(options = {}) {
   elements.openAddDialog.hidden = isReadOnlyShare;
   elements.emptyAddButton.hidden = isReadOnlyShare;
   elements.shareDetailsButton.hidden = isSharedView || !isLocalSyncServer;
+  elements.saveButton.hidden = !isLocalSyncServer;
+  updateSaveButton();
   renderShareBanner();
   updateDateLabel();
   updateSummary(options);
@@ -949,6 +989,13 @@ elements.habitList.addEventListener("input", (event) => {
   if (!elements.detailsPanel.hidden) renderHistory();
 });
 
+elements.saveButton.addEventListener("click", saveCurrentData);
+
+window.addEventListener("beforeunload", (event) => {
+  if (!hasUnsavedChanges || !isLocalSyncServer) return;
+  event.preventDefault();
+  event.returnValue = "";
+});
 elements.openAddDialog.addEventListener("click", openDialog);
 elements.emptyAddButton.addEventListener("click", openDialog);
 elements.closeDialog.addEventListener("click", closeDialog);
@@ -1089,6 +1136,11 @@ render();
 
 if (isLocalSyncServer) initializeLocalServerData();
 if (isRemoteLiveView) startRemoteLiveUpdates();
+
+
+
+
+
 
 
 
