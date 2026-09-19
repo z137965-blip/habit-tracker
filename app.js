@@ -362,7 +362,10 @@ function applyLivePayload(payload) {
 async function loadRemoteLiveData() {
   if (!isRemoteLiveView) return;
   try {
-    const response = await fetch(`${LIVE_DATA_URL}?t=${Date.now()}`, { cache: "no-store" });
+    const response = await fetch(`${LIVE_API_URL}&t=${Date.now()}`, {
+      cache: "no-store",
+      headers: { Accept: "application/vnd.github.raw+json" }
+    });
     if (!response.ok) throw new Error(`Remote data failed: ${response.status}`);
     const payload = await response.json();
     if (payload.updatedAt && payload.updatedAt === liveDataUpdatedAt) return;
