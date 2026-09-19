@@ -6,6 +6,7 @@ import subprocess
 import threading
 import time
 import webbrowser
+import urllib.request
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import urlparse
@@ -16,6 +17,7 @@ HOST = "127.0.0.1"
 PORT = 4177
 ORIGIN = f"http://{HOST}:{PORT}"
 MAX_BODY = 4 * 1024 * 1024
+NOTIFY_TOPIC = "habit-z137965-8f3c9a7d2e"
 
 publish_event = threading.Event()
 stop_event = threading.Event()
@@ -60,6 +62,19 @@ def run_git(*args: str) -> subprocess.CompletedProcess[str]:
     )
 
 
+
+def publish_notification() -> None:
+    request = urllib.request.Request(
+        f"https://ntfy.sh/{NOTIFY_TOPIC}",
+        data=b"updated",
+        method="POST",
+        headers={"Title": "Habit data updated", "Tags": "white_check_mark"},
+    )
+    try:
+        with urllib.request.urlopen(request, timeout=8) as response:
+            response.read()
+    except Exception as error:
+        print(f"Live update notification failed: {error}")
 def publish_data() -> None:
     if not (ROOT / ".git").exists():
         return
@@ -78,6 +93,7 @@ def publish_data() -> None:
         for attempt in range(1, 4):
             push = run_git("push", "origin", "main")
             if push.returncode == 0:
+                publish_notification()
                 print(f"Synced local habit data ({time.strftime('%H:%M:%S')})")
                 return
             print(f"Git push attempt {attempt} failed: {push.stderr.strip()}")

@@ -5,7 +5,8 @@ const LEGACY_RECORDS_KEY = "daymark.records.v1";
 const LEARNING_MIGRATION_KEY = "daymark.migration.learning.v1";
 
 const PUBLIC_SITE_URL = "https://z137965-blip.github.io/habit-tracker/";
-const LIVE_DATA_URL = "https://raw.githubusercontent.com/z137965-blip/habit-tracker/main/data.json";
+const LIVE_API_URL = "https://api.github.com/repos/z137965-blip/habit-tracker/contents/data.json?ref=main";
+const LIVE_NOTIFY_TOPIC = "habit-z137965-8f3c9a7d2e";
 const LOCAL_SERVER_ORIGIN = "http://127.0.0.1:4177";
 
 const starterHabits = [
@@ -1095,9 +1096,7 @@ render();
 
 
 if (isLocalSyncServer) initializeLocalServerData();
-if (isRemoteLiveView) {
-  loadRemoteLiveData();
-  window.setInterval(() => {
-    if (!document.hidden) loadRemoteLiveData();
-  }, 5000);
-}
+if (isRemoteLiveView) startRemoteLiveUpdates();
+
+
+
