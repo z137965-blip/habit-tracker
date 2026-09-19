@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#f5f3ff">
   <meta name="description" content="带目标进度、习惯记忆和周期统计的每日习惯打卡页。">
   <title>今日打卡 · Habit Tracker</title>
-  <link rel="stylesheet" href="styles.css?v=8">
+  <link rel="stylesheet" href="styles.css?v=9">
 </head>
 <body>
   <div class="ambient ambient-one" aria-hidden="true"></div>
@@ -19,11 +19,20 @@
         <h1>今天，做一点就好。</h1>
       </div>
       <button class="add-button" id="openAddDialog" type="button">
-        <svg aria-hidden="true" viewBox="0 0 24 24">
-          <path d="M12 5v14M5 12h14"></path>
-        </svg>
-        <span>添加习惯</span>
-      </button>
+      <div class="top-actions">
+        <button class="save-button" id="saveButton" type="button">
+          <svg aria-hidden="true" viewBox="0 0 24 24">
+            <path d="M5 4h12l2 2v14H5V4Zm3 0v6h8V4M8 20v-6h8v6"></path>
+          </svg>
+          <span>保存</span>
+        </button>
+        <button class="add-button" id="openAddDialog" type="button">
+          <svg aria-hidden="true" viewBox="0 0 24 24">
+            <path d="M12 5v14M5 12h14"></path>
+          </svg>
+          <span>添加习惯</span>
+        </button>
+      </div>
     </header>
 
     <section class="share-banner" id="shareBanner" hidden>
@@ -237,9 +246,10 @@
     <button id="undoButton" type="button" hidden>撤销</button>
   </div>
 
-  <script src="app.js?v=8" defer></script>
+  <script src="app.js?v=9" defer></script>
 </body>
 </html>
+
 
 
 
