@@ -1094,3 +1094,10 @@ render();
 
 
 
+if (isLocalSyncServer) initializeLocalServerData();
+if (isRemoteLiveView) {
+  loadRemoteLiveData();
+  window.setInterval(() => {
+    if (!document.hidden) loadRemoteLiveData();
+  }, 5000);
+}
