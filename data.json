@@ -1,43 +1,52 @@
 {
   "version": 1,
-  "updatedAt": "2026-09-19T19:00:47Z",
+  "updatedAt": "2026-09-19T19:04:44.952Z",
   "viewDate": "2026-09-20",
   "habits": [
     {
+      "id": "starter-water",
       "name": "喝水",
       "icon": "water",
       "target": 8,
       "unit": "杯",
-      "id": "starter-water"
+      "createdAt": "2026-09-19T19:04:43.432Z"
     },
     {
+      "id": "starter-move",
       "name": "运动 20 分钟",
       "icon": "exercise",
       "target": 20,
       "unit": "分钟",
-      "id": "starter-move"
+      "createdAt": "2026-09-19T19:04:43.432Z"
     },
     {
+      "id": "starter-read",
       "name": "读书",
       "icon": "book",
       "target": 20,
       "unit": "页",
-      "id": "starter-read"
+      "createdAt": "2026-09-19T19:04:43.432Z"
     },
     {
+      "id": "starter-sleep",
       "name": "早睡",
       "icon": "sleep",
       "target": 1,
       "unit": "次",
-      "id": "starter-sleep"
+      "createdAt": "2026-09-19T19:04:43.432Z"
     },
     {
+      "id": "starter-study",
       "name": "学习",
       "icon": "study",
       "target": 60,
       "unit": "分钟",
-      "id": "starter-study"
+      "createdAt": "2026-09-19T19:04:43.432Z"
     }
   ],
-  "records": {}
+  "records": {
+    "2026-09-20": {
+      "starter-water": 2
+    }
+  }
 }
