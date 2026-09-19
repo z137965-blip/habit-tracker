@@ -54,7 +54,7 @@ def write_data(payload: object) -> None:
         temp = DATA_FILE.with_suffix(".json.tmp")
         temp.write_text(normalized, encoding="utf-8")
         temp.replace(DATA_FILE)
-    publish_event.set()
+    # Publishing is triggered explicitly by the Save button.
 
 
 def find_gh() -> str:
@@ -84,7 +84,7 @@ def publish_notification() -> None:
         print(f"Live update notification failed: {error}")
 
 
-def publish_data() -> None:
+def publish_data() -> bool:
     with publish_lock:
         try:
             gh = find_gh()
@@ -122,8 +122,10 @@ def publish_data() -> None:
                 raise RuntimeError(result.stderr.strip() or "GitHub API update failed")
             publish_notification()
             print(f"Synced local habit data ({time.strftime('%H:%M:%S')})")
+            return True
         except Exception as error:
             print(f"Sync failed: {error}")
+            return False
 
 
 def publish_worker() -> None:
@@ -192,6 +194,14 @@ class Handler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(body)
 
+    def do_POST(self) -> None:
+        if urlparse(self.path).path != "/api/publish":
+            self.send_error(404)
+            return
+        if publish_data():
+            self.send_json(200, {"ok": True})
+        else:
+            self.send_json(500, {"ok": False, "error": "GitHub sync failed"})
     def do_PUT(self) -> None:
         if urlparse(self.path).path != "/api/data":
             self.send_error(404)
@@ -214,7 +224,7 @@ def main() -> None:
     threading.Thread(target=publish_worker, daemon=True).start()
     server = ThreadingHTTPServer((HOST, PORT), Handler)
     print(f"本地习惯打卡服务已启动：{ORIGIN}")
-    print("数据修改会自动同步到 GitHub Pages。关闭此窗口即可停止同步。")
+    print("点击页面右上角“保存”后同步到 GitHub Pages。关闭此窗口即可停止同步。")
     if os.environ.get("HABIT_TRACKER_NO_BROWSER") != "1":
         threading.Timer(0.8, lambda: webbrowser.open(ORIGIN)).start()
     try:
@@ -228,4 +238,7 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+
+
+
 
