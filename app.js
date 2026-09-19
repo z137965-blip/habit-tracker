@@ -231,6 +231,8 @@ function loadHabits() {
   if (activeShareId && !Array.isArray(stored)) stored = sharedSnapshot.habits;
   if (!activeShareId && !Array.isArray(stored)) stored = readJson(LEGACY_HABITS_KEY, null);
 
+  if (!Array.isArray(stored)) return starterHabits.map(normalizeHabit);
+
   const normalized = stored.filter((habit) => habit && habit.id && habit.name).map(normalizeHabit);
   if (!activeShareId && !hasLocalValue(LEARNING_MIGRATION_KEY)) {
     const hasStudyHabit = normalized.some((habit) => /学习|课程|英语|背词/.test(habit.name) || habit.icon === "study");
