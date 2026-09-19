@@ -707,43 +707,21 @@ function addHabit(event) {
   }, 60);
 }
 
-function makeShareLink(mode) {
-  const shareId = activeShareId || makeId();
-  const payload = {
-    version: 1,
-    mode: mode === "edit" ? "edit" : "view",
-    shareId,
-    exportedAt: new Date().toISOString(),
-    viewDate: currentDateKey,
-    habits,
-    records
-  };
-  const baseUrl = window.location.href.split("#")[0];
-  return `${baseUrl}#share=${encodeBase64Url(JSON.stringify(payload))}`;
-}
-
-function getSelectedShareMode() {
-  const selected = elements.shareDialog.querySelector('input[name="shareMode"]:checked');
-  return selected ? selected.value : "edit";
+function makeShareLink() {
+  return PUBLIC_SITE_URL;
 }
 
 function refreshShareLink() {
-  const mode = getSelectedShareMode();
-  elements.shareLink.value = makeShareLink(mode);
-  elements.shareDialog.querySelector("#shareHelp").textContent = mode === "edit"
-    ? "可操作链接会载入一份独立数据副本，在此浏览器中的修改会继续保存在本地。"
-    : "只读链接只展示当前快照，打开后不能新增、修改或删除任何数据。";
+  elements.shareLink.value = makeShareLink();
+  elements.shareDialog.querySelector("#shareHelp").textContent = "链接始终只读。你在本机完成的操作会自动同步，打开链接的人可实时查看最新数据。";
 }
 
 function openShareDialog() {
-  const preferredMode = isSharedView ? sharedSnapshot.mode : "edit";
-  elements.shareDialog.querySelectorAll('input[name="shareMode"]').forEach((input) => {
-    input.checked = input.value === preferredMode;
-  });
   refreshShareLink();
   elements.shareDialog.showModal();
   window.setTimeout(() => elements.shareLink.select(), 60);
 }
+
 
 function closeShareDialog() {
   if (elements.shareDialog.open) elements.shareDialog.close();
