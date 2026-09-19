@@ -4,6 +4,10 @@ const RECORDS_KEY = "daymark.records.v2";
 const LEGACY_RECORDS_KEY = "daymark.records.v1";
 const LEARNING_MIGRATION_KEY = "daymark.migration.learning.v1";
 
+const PUBLIC_SITE_URL = "https://z137965-blip.github.io/habit-tracker/";
+const LIVE_DATA_URL = "https://raw.githubusercontent.com/z137965-blip/habit-tracker/main/data.json";
+const LOCAL_SERVER_ORIGIN = "http://127.0.0.1:4177";
+
 const starterHabits = [
   { id: "starter-water", name: "喝水", icon: "water", target: 8, unit: "杯" },
   { id: "starter-move", name: "运动 20 分钟", icon: "exercise", target: 20, unit: "分钟" },
@@ -69,17 +73,21 @@ const elements = {
   copyShareLink: document.getElementById("copyShareLink"),
   shareBanner: document.getElementById("shareBanner"),
   shareBannerMeta: document.getElementById("shareBannerMeta"),
-  exitShareView: document.getElementById("exitShareView")
+  exitShareView: document.getElementById("exitShareView"),
+  syncStatus: document.getElementById("syncStatus")
 };
 
-const sharedSnapshot = parseSharedSnapshot();
-const isSharedView = Boolean(sharedSnapshot);
-const isReadOnlyShare = isSharedView && sharedSnapshot.mode === "view";
+const legacySharedSnapshot = parseSharedSnapshot();
+const isLocalSyncServer = window.location.origin === LOCAL_SERVER_ORIGIN;
+const isRemoteLiveView = /\.github\.io$/i.test(window.location.hostname);
+const isSharedView = Boolean(legacySharedSnapshot) || isRemoteLiveView;
+const sharedSnapshot = legacySharedSnapshot || (isRemoteLiveView ? { mode: "view", shareId: "live", viewDate: getDateKey(new Date()) } : null);
+const isReadOnlyShare = isSharedView;
 const canEdit = !isReadOnlyShare;
-const activeShareId = sharedSnapshot && sharedSnapshot.mode === "edit" ? sharedSnapshot.shareId : null;
-let habits = loadHabits();
-let records = loadRecords();
-let currentDateKey = isSharedView ? sharedSnapshot.viewDate : getDateKey(new Date());
+const activeShareId = null;
+let habits = isRemoteLiveView ? [] : (legacySharedSnapshot ? legacySharedSnapshot.habits : loadHabits());
+let records = isRemoteLiveView ? {} : (legacySharedSnapshot ? legacySharedSnapshot.records : loadRecords());
+let currentDateKey = sharedSnapshot ? sharedSnapshot.viewDate : getDateKey(new Date());
 let selectedIcon = "spark";
 let selectedHistoryRange = "history";
 let selectedHistoryDateKey = currentDateKey;
@@ -89,13 +97,11 @@ let detailsCloseTimer = null;
 let hasRenderedSummary = false;
 let wasAllComplete = false;
 let hasOpenedDetails = false;
+let liveDataUpdatedAt = "";
+let serverSyncTimer = null;
+let serverSyncInFlight = false;
 
-if (!isReadOnlyShare) {
-  saveHabits();
-  saveRecords();
-}
-
-if (!isSharedView) {
+if (canEdit) {
   saveHabits();
   saveRecords();
 }
@@ -266,13 +272,106 @@ function loadRecords() {
   return normalized;
 }
 
-function saveHabits() { writeJson(getHabitsStorageKey(), habits); }
-function saveRecords() { writeJson(getRecordsStorageKey(), records); }
+function saveHabits() { if (!canEdit) return; writeJson(HABITS_KEY, habits); queueServerSync(); }
+function saveRecords() { if (!canEdit) return; writeJson(RECORDS_KEY, records); queueServerSync(); }
 function makeId() {
   if (globalThis.crypto && typeof globalThis.crypto.randomUUID === "function") return globalThis.crypto.randomUUID();
   return `habit-${Date.now()}-${Math.random().toString(16).slice(2)}`;
 }
 
+function getLivePayload() {
+  return {
+    version: 1,
+    updatedAt: new Date().toISOString(),
+    viewDate: currentDateKey,
+    habits,
+    records
+  };
+}
+
+function queueServerSync() {
+  if (!isLocalSyncServer || !canEdit) return;
+  window.clearTimeout(serverSyncTimer);
+  serverSyncTimer = window.setTimeout(syncToLocalServer, 700);
+}
+
+async function syncToLocalServer() {
+  if (!isLocalSyncServer || !canEdit || serverSyncInFlight) return;
+  serverSyncInFlight = true;
+  try {
+    const response = await fetch(`${LOCAL_SERVER_ORIGIN}/api/data`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(getLivePayload())
+    });
+    if (!response.ok) throw new Error(`Local sync failed: ${response.status}`);
+  } catch (error) {
+    console.warn("本地同步服务暂时不可用：", error);
+  } finally {
+    serverSyncInFlight = false;
+  }
+}
+
+async function initializeLocalServerData() {
+  if (!isLocalSyncServer) return;
+  try {
+    const response = await fetch(`${LOCAL_SERVER_ORIGIN}/api/data`, { cache: "no-store" });
+    if (!response.ok) throw new Error(`Local data failed: ${response.status}`);
+    const payload = await response.json();
+    const hasData = Array.isArray(payload.habits) && payload.habits.length > 0;
+    if (!hasData) {
+      await syncToLocalServer();
+      return;
+    }
+    applyLivePayload(payload);
+  } catch (error) {
+    console.warn("无法读取本地同步数据：", error);
+  }
+}
+
+function normalizeLivePayload(payload) {
+  const nextHabits = Array.isArray(payload?.habits)
+    ? payload.habits.filter((habit) => habit && habit.id && habit.name).map(normalizeHabit)
+    : [];
+  const nextRecords = {};
+  if (payload?.records && typeof payload.records === "object") {
+    Object.entries(payload.records).forEach(([dateKey, dayRecord]) => {
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(dateKey) || !dayRecord || typeof dayRecord !== "object") return;
+      const nextDay = {};
+      nextHabits.forEach((habit) => {
+        const value = clamp(Math.round(Number(dayRecord[habit.id]) || 0), 0, habit.target);
+        if (value > 0) nextDay[habit.id] = value;
+      });
+      if (Object.keys(nextDay).length > 0) nextRecords[dateKey] = nextDay;
+    });
+  }
+  return { habits: nextHabits, records: nextRecords, viewDate: payload?.viewDate || getDateKey(new Date()), updatedAt: payload?.updatedAt || "" };
+}
+
+function applyLivePayload(payload) {
+  const normalized = normalizeLivePayload(payload);
+  habits = normalized.habits;
+  records = normalized.records;
+  currentDateKey = normalized.viewDate;
+  selectedHistoryDateKey = currentDateKey;
+  liveDataUpdatedAt = normalized.updatedAt;
+  render();
+}
+
+async function loadRemoteLiveData() {
+  if (!isRemoteLiveView) return;
+  try {
+    const response = await fetch(`${LIVE_DATA_URL}?t=${Date.now()}`, { cache: "no-store" });
+    if (!response.ok) throw new Error(`Remote data failed: ${response.status}`);
+    const payload = await response.json();
+    if (payload.updatedAt && payload.updatedAt === liveDataUpdatedAt) return;
+    applyLivePayload(payload);
+    elements.shareBannerMeta.textContent = `只读视图 · 已于 ${new Intl.DateTimeFormat("zh-CN", { hour: "2-digit", minute: "2-digit" }).format(new Date())} 更新`;
+  } catch (error) {
+    console.warn("共享数据暂时无法读取：", error);
+    if (elements.shareBannerMeta) elements.shareBannerMeta.textContent = "只读视图 · 暂时无法连接，正在自动重试";
+  }
+}
 function getHabitValue(habit) {
   const dayRecord = records[currentDateKey];
   if (!dayRecord || typeof dayRecord !== "object") return 0;
@@ -414,12 +513,17 @@ function updateSummary(options = {}) {
 function renderShareBanner() {
   if (!isSharedView) {
     elements.shareBanner.hidden = true;
+    elements.syncStatus.textContent = isLocalSyncServer
+      ? "本机操作 · 自动同步至 GitHub Pages"
+      : "本地浏览器数据";
     return;
   }
+  elements.syncStatus.textContent = "只读视图 · 自动接收本机更新";
   elements.shareBanner.hidden = false;
-  if (sharedSnapshot.mode === "edit") {
-    elements.shareBanner.querySelector("strong").textContent = "正在编辑分享数据";
-    elements.shareBannerMeta.textContent = "修改会保存在当前浏览器，并可再次生成新链接";
+  elements.exitShareView.hidden = isRemoteLiveView;
+  if (isRemoteLiveView) {
+    elements.shareBanner.querySelector("strong").textContent = "正在查看实时数据";
+    elements.shareBannerMeta.textContent = "只读视图 · 每 5 秒自动同步本机最新数据";
   } else {
     elements.shareBanner.querySelector("strong").textContent = "正在查看分享数据";
     elements.shareBannerMeta.textContent = "只读预览，不能增加、修改或删除内容";
@@ -433,6 +537,7 @@ function render(options = {}) {
   elements.emptyState.hidden = habits.length > 0;
   elements.openAddDialog.hidden = isReadOnlyShare;
   elements.emptyAddButton.hidden = isReadOnlyShare;
+  elements.shareDetailsButton.hidden = isSharedView || !isLocalSyncServer;
   renderShareBanner();
   updateDateLabel();
   updateSummary(options);
@@ -968,6 +1073,12 @@ window.setInterval(() => {
 }, 60000);
 
 render();
+
+
+
+
+
+
 
 
 

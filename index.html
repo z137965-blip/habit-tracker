@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#f5f3ff">
   <meta name="description" content="带目标进度、习惯记忆和周期统计的每日习惯打卡页。">
   <title>今日打卡 · Habit Tracker</title>
-  <link rel="stylesheet" href="styles.css?v=2">
+  <link rel="stylesheet" href="styles.css?v=3">
 </head>
 <body>
   <div class="ambient ambient-one" aria-hidden="true"></div>
@@ -83,7 +83,7 @@
 
     <footer class="app-footer">
       <span class="local-dot" aria-hidden="true"></span>
-      习惯与历史记录仅保存在当前浏览器
+      <span id="syncStatus">本地浏览器数据</span>
     </footer>
   </main>
 
@@ -216,29 +216,13 @@
       <div class="details-heading">
         <div>
           <p class="dialog-kicker">SHARE SNAPSHOT</p>
-          <h2 id="shareDialogTitle">分享数据链接</h2>
+          <h2 id="shareDialogTitle">实时分享链接</h2>
         </div>
         <button class="icon-button" id="closeShareDialog" type="button" aria-label="关闭分享">
           <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"></path></svg>
         </button>
       </div>
-      <div class="share-mode-options" role="radiogroup" aria-label="分享权限">
-        <label>
-          <input type="radio" name="shareMode" value="edit" checked>
-          <span>
-            <strong>可操作并本地保存</strong>
-            <small>打开链接后可以继续打卡，修改保存在该浏览器中，并可再次生成新链接。</small>
-          </span>
-        </label>
-        <label>
-          <input type="radio" name="shareMode" value="view">
-          <span>
-            <strong>仅预览</strong>
-            <small>只查看当前习惯和历史数据，不能增加、修改或删除内容。</small>
-          </span>
-        </label>
-      </div>
-      <p class="share-help" id="shareHelp">链接会包含当前习惯与历史完成量的快照。发布到静态网站后即可分享。</p>
+      <p class="share-help" id="shareHelp">链接始终只读。你在本机完成的操作会自动同步，打开链接的人可实时查看最新数据。</p>
       <label class="field-label" for="shareLink">分享链接</label>
       <input class="text-input share-link-input" id="shareLink" type="text" readonly>
       <div class="dialog-actions">
@@ -253,9 +237,11 @@
     <button id="undoButton" type="button" hidden>撤销</button>
   </div>
 
-  <script src="app.js?v=2" defer></script>
+  <script src="app.js?v=3" defer></script>
 </body>
 </html>
+
+
 
 
 
