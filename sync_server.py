@@ -1,6 +1,9 @@
 from __future__ import annotations
 
 import json
+import base64
+import shutil
+import tempfile
 import os
 import subprocess
 import threading
@@ -18,6 +21,8 @@ PORT = 4177
 ORIGIN = f"http://{HOST}:{PORT}"
 MAX_BODY = 4 * 1024 * 1024
 NOTIFY_TOPIC = "habit-z137965-8f3c9a7d2e"
+GH_REPO = "z137965-blip/habit-tracker"
+GH_DATA_ENDPOINT = f"repos/{GH_REPO}/contents/data.json"
 
 publish_event = threading.Event()
 stop_event = threading.Event()
@@ -52,15 +57,17 @@ def write_data(payload: object) -> None:
     publish_event.set()
 
 
-def run_git(*args: str) -> subprocess.CompletedProcess[str]:
-    return subprocess.run(
-        ["git", "-C", str(ROOT), *args],
-        capture_output=True,
-        text=True,
-        encoding="utf-8",
-        errors="replace",
-    )
-
+def find_gh() -> str:
+    discovered = shutil.which("gh")
+    candidates = [
+        discovered,
+        os.path.expandvars(r"%LOCALAPPDATA%\Microsoft\WinGet\Links\gh.exe"),
+        os.path.expandvars(r"%LOCALAPPDATA%\Microsoft\WinGet\Packages\GitHub.cli_Microsoft.Winget.Source_8wekyb3d8bbwe\bin\gh.exe"),
+    ]
+    for candidate in candidates:
+        if candidate and Path(candidate).is_file():
+            return str(candidate)
+    raise RuntimeError("GitHub CLI was not found. Run GitHub CLI login first.")
 
 
 def publish_notification() -> None:
@@ -68,38 +75,55 @@ def publish_notification() -> None:
         f"https://ntfy.sh/{NOTIFY_TOPIC}",
         data=b"updated",
         method="POST",
-        headers={"Title": "Habit data updated", "Tags": "white_check_mark"},
+        headers={"Title": "Habit data updated"},
     )
     try:
         with urllib.request.urlopen(request, timeout=8) as response:
             response.read()
     except Exception as error:
         print(f"Live update notification failed: {error}")
+
+
 def publish_data() -> None:
-    if not (ROOT / ".git").exists():
-        return
-
     with publish_lock:
-        run_git("add", "data.json")
-        diff = run_git("diff", "--cached", "--quiet")
-        if diff.returncode == 0:
-            return
-
-        commit = run_git("commit", "-m", f"Update habit data {time.strftime('%Y-%m-%d %H:%M:%S')}")
-        if commit.returncode != 0:
-            print(f"Git commit failed: {commit.stderr.strip()}")
-            return
-
-        for attempt in range(1, 4):
-            push = run_git("push", "origin", "main")
-            if push.returncode == 0:
-                publish_notification()
-                print(f"Synced local habit data ({time.strftime('%H:%M:%S')})")
-                return
-            print(f"Git push attempt {attempt} failed: {push.stderr.strip()}")
-            time.sleep(3)
-
-        print("Git push failed. The next local change will retry automatically.")
+        try:
+            gh = find_gh()
+            payload = json.loads(read_data().decode("utf-8"))
+            encoded = base64.b64encode(json.dumps(payload, ensure_ascii=False, separators=(",", ":")).encode("utf-8")).decode("ascii")
+            sha_result = subprocess.run(
+                [gh, "api", GH_DATA_ENDPOINT, "--jq", ".sha"],
+                capture_output=True,
+                text=True,
+                encoding="utf-8",
+                errors="replace",
+            )
+            if sha_result.returncode != 0:
+                raise RuntimeError(sha_result.stderr.strip() or "Unable to read remote data SHA")
+            body = {
+                "message": f"Update habit data {time.strftime('%Y-%m-%d %H:%M:%S')}",
+                "content": encoded,
+                "sha": sha_result.stdout.strip(),
+                "branch": "main",
+            }
+            with tempfile.NamedTemporaryFile("w", encoding="utf-8", suffix=".json", delete=False) as handle:
+                json.dump(body, handle, ensure_ascii=False)
+                payload_file = handle.name
+            try:
+                result = subprocess.run(
+                    [gh, "api", "--method", "PUT", GH_DATA_ENDPOINT, "--input", payload_file],
+                    capture_output=True,
+                    text=True,
+                    encoding="utf-8",
+                    errors="replace",
+                )
+            finally:
+                Path(payload_file).unlink(missing_ok=True)
+            if result.returncode != 0:
+                raise RuntimeError(result.stderr.strip() or "GitHub API update failed")
+            publish_notification()
+            print(f"Synced local habit data ({time.strftime('%H:%M:%S')})")
+        except Exception as error:
+            print(f"Sync failed: {error}")
 
 
 def publish_worker() -> None:
