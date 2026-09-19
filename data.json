@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updatedAt": "2026-09-19T19:04:44.952Z",
+  "updatedAt": "2026-09-19T19:08:45.353Z",
   "viewDate": "2026-09-20",
   "habits": [
     {
@@ -44,9 +44,5 @@
       "createdAt": "2026-09-19T19:04:43.432Z"
     }
   ],
-  "records": {
-    "2026-09-20": {
-      "starter-water": 2
-    }
-  }
+  "records": {}
 }
