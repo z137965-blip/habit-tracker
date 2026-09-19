@@ -2051,3 +2051,102 @@ h1 {
 [hidden] {
   display: none !important;
 }
+
+.top-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.save-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 48px;
+  border: 1px solid var(--line-strong);
+  border-radius: 999px;
+  padding: 0 18px;
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: var(--shadow-soft);
+  cursor: pointer;
+  font-size: 0.9rem;
+  font-weight: 700;
+  transition: transform 180ms var(--ease), border-color 180ms var(--ease), background-color 180ms var(--ease), color 180ms var(--ease);
+}
+
+.save-button svg {
+  width: 17px;
+  height: 17px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.save-button.has-changes {
+  border-color: transparent;
+  background: var(--primary-soft);
+  color: var(--primary-deep);
+}
+
+.save-button:disabled {
+  cursor: wait;
+  opacity: 0.65;
+}
+
+.save-button:hover:not(:disabled) {
+  transform: translateY(-2px);
+  border-color: color-mix(in srgb, var(--primary) 32%, var(--line));
+}
+
+@media (max-width: 700px) {
+  .top-actions {
+    gap: 8px;
+  }
+
+  .save-button {
+    width: 48px;
+    padding: 0;
+  }
+
+  .save-button span {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+}
+.topbar > div:first-child {
+  min-width: 0;
+}
+
+.top-actions {
+  flex: 0 0 auto;
+}
+
+.save-button,
+.add-button {
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+
+.save-button {
+  min-width: 96px;
+}
+
+.add-button {
+  min-width: 126px;
+}
+
+@media (max-width: 700px) {
+  .save-button,
+  .add-button {
+    min-width: 48px;
+  }
+}
