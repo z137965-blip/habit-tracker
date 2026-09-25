@@ -338,13 +338,18 @@ async function saveCurrentData() {
     if (!saveResponse.ok) throw new Error(`Save failed: ${saveResponse.status}`);
 
     const publishResponse = await fetch(`${LOCAL_SERVER_ORIGIN}/api/publish`, { method: "POST" });
-    if (!publishResponse.ok) throw new Error(`Publish failed: ${publishResponse.status}`);
+    if (!publishResponse.ok) {
+      if (publishResponse.status === 401) throw new Error("AUTH_EXPIRED");
+      throw new Error(`Publish failed: ${publishResponse.status}`);
+    }
 
     hasUnsavedChanges = false;
     showToast("已保存并同步");
   } catch (error) {
     console.warn("保存失败：", error);
-    showToast("保存失败，请确认本机同步服务已启动");
+    showToast(error.message === "AUTH_EXPIRED"
+      ? "GitHub 登录已失效，请关闭后重新打开快捷方式"
+      : "保存失败，请确认本机同步服务已启动");
   } finally {
     serverSyncInFlight = false;
     updateSaveButton();
@@ -1136,6 +1141,7 @@ render();
 
 if (isLocalSyncServer) initializeLocalServerData();
 if (isRemoteLiveView) startRemoteLiveUpdates();
+
 
 
 

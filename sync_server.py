@@ -84,7 +84,7 @@ def publish_notification() -> None:
         print(f"Live update notification failed: {error}")
 
 
-def publish_data() -> bool:
+def publish_data() -> tuple[bool, str]:
     with publish_lock:
         try:
             gh = find_gh()
@@ -122,10 +122,10 @@ def publish_data() -> bool:
                 raise RuntimeError(result.stderr.strip() or "GitHub API update failed")
             publish_notification()
             print(f"Synced local habit data ({time.strftime('%H:%M:%S')})")
-            return True
+            return True, ""
         except Exception as error:
             print(f"Sync failed: {error}")
-            return False
+            return False, str(error)
 
 
 def publish_worker() -> None:
@@ -198,10 +198,15 @@ class Handler(BaseHTTPRequestHandler):
         if urlparse(self.path).path != "/api/publish":
             self.send_error(404)
             return
-        if publish_data():
+        ok, error_message = publish_data()
+        if ok:
             self.send_json(200, {"ok": True})
         else:
-            self.send_json(500, {"ok": False, "error": "GitHub sync failed"})
+            lowered = error_message.lower()
+            status = 401 if "authentication" in lowered or "401" in lowered else 500
+            self.send_json(status, {"ok": False, "error": error_message})
+
+
     def do_PUT(self) -> None:
         if urlparse(self.path).path != "/api/data":
             self.send_error(404)
